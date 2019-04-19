@@ -1,16 +1,18 @@
 import { Injectable, NgZone } from '@angular/core';
-import { User } from "../services/user";
+import { User } from "./user"
 import { auth } from 'firebase/app';
 import { AngularFireAuth } from "@angular/fire/auth";
 import { AngularFirestore, AngularFirestoreDocument } from '@angular/fire/firestore';
 import { Router } from "@angular/router";
+import { Observable, of} from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
 })
 
 export class AuthService {
-  userData: any; // Save logged in user data
+  user: Observable<User>;
 
   constructor(
     public afs: AngularFirestore,   // Inject Firestore service
@@ -18,18 +20,15 @@ export class AuthService {
     public router: Router,  
     public ngZone: NgZone // NgZone service to remove outside scope warning
   ) {    
-    /* Saving user data in localstorage when 
-    logged in and setting up null when logged out */
-    this.afAuth.authState.subscribe(user => {
-      if (user) {
-        this.userData = user;
-        localStorage.setItem('user', JSON.stringify(this.userData));
-        JSON.parse(localStorage.getItem('user'));
-      } else {
-        localStorage.setItem('user', null);
-        JSON.parse(localStorage.getItem('user'));
-      }
-    })
+    this.user = this.afAuth.authState.pipe(
+      switchMap(user => {
+        if (user) {
+          return this.afs.doc<User>(`users/${user.uid}`).valueChanges();
+        } else {
+          return of(null);
+        }
+      })
+    );
   }
 
   // Sign in with email/password
@@ -37,12 +36,16 @@ export class AuthService {
     return this.afAuth.auth.signInWithEmailAndPassword(email, password)
       .then((result) => {
         this.ngZone.run(() => {
-          this.router.navigate(['dashboard']);
+          this.router.navigate(['/']);
+          localStorage.setItem('user', JSON.stringify(result.user));
         });
-        this.SetUserData(result.user);
       }).catch((error) => {
-        window.alert(error.message)
+        window.alert('Ooops! something went wrong');
       })
+  }
+
+  getUser() {
+    return this.user;
   }
 
   // Sign up with email/password
@@ -54,7 +57,27 @@ export class AuthService {
         this.SendVerificationMail();
         this.SetUserData(result.user);
       }).catch((error) => {
-        window.alert(error.message)
+        window.alert('Please Enter Valid Details.')
+      })
+  }
+
+  SignUpGuide(email, password) {
+    return this.afAuth.auth.createUserWithEmailAndPassword(email, password)
+      .then((result) => {
+        this.SetUserDataKeeper(result.user);
+        window.alert('Wait until conformation.');
+      }).catch((error) => {
+        window.alert('Please Enter Valid Details.')
+      })
+  }
+
+  SignUpAdmin(email, password) {
+    return this.afAuth.auth.createUserWithEmailAndPassword(email, password)
+      .then((result) => {
+        this.SetUserDataAdmin(result.user);
+        window.alert('Wait until conformation.');
+      }).catch((error) => {
+        window.alert('Please Enter Valid Details.')
       })
   }
 
@@ -66,7 +89,7 @@ export class AuthService {
     })
   }
 
-  // Reset Forggot password
+  /// Reset Forggot password
   ForgotPassword(passwordResetEmail) {
     return this.afAuth.auth.sendPasswordResetEmail(passwordResetEmail)
     .then(() => {
@@ -86,15 +109,64 @@ export class AuthService {
   GoogleAuth() {
     return this.AuthLogin(new auth.GoogleAuthProvider());
   }
+  GoogleSignUp() {
+    return this.AuthSignUp(new auth.GoogleAuthProvider());
+  }
+
+  GoogleSignUpGuide() {
+    return this.AuthSignUpKeeper(new auth.GoogleAuthProvider());
+  }
+
+  GoogleSignUpAdmin() {
+    return this.AuthSignUpAdmin(new auth.GoogleAuthProvider());
+  }
 
   // Auth logic to run auth providers
   AuthLogin(provider) {
     return this.afAuth.auth.signInWithPopup(provider)
     .then((result) => {
        this.ngZone.run(() => {
-          this.router.navigate(['dashboard']);
+          this.router.navigate(['/']);
+          localStorage.setItem('user', JSON.stringify(result.user));
         })
-      this.SetUserData(result.user);
+    }).catch((error) => {
+      window.alert(error)
+    })
+  }
+
+  AuthSignUp(provider) {
+    return this.afAuth.auth.signInWithPopup(provider)
+    .then((result) => {
+       this.ngZone.run(() => {
+          this.router.navigate(['./sign-in']);
+          localStorage.setItem('user', JSON.stringify(result.user));
+        })
+        this.SetUserData(result.user);
+    }).catch((error) => {
+      window.alert(error)
+    })
+  }
+
+  AuthSignUpKeeper(provider) {
+    return this.afAuth.auth.signInWithPopup(provider)
+    .then((result) => {
+       this.ngZone.run(() => {
+          this.router.navigate(['./sign-in']);
+        })
+        this.SetUserDataKeeper(result.user);
+    }).catch((error) => {
+      window.alert(error)
+    })
+  }
+
+  AuthSignUpAdmin(provider) {
+    return this.afAuth.auth.signInWithPopup(provider)
+    .then((result) => {
+       this.ngZone.run(() => {
+          this.router.navigate(['./sign-in']);
+        })
+
+        this.SetUserDataAdmin(result.user);
     }).catch((error) => {
       window.alert(error)
     })
@@ -104,15 +176,106 @@ export class AuthService {
   sign up with username/password and sign in with social auth  
   provider in Firestore database using AngularFirestore + AngularFirestoreDocument service */
   SetUserData(user) {
-    const userRef: AngularFirestoreDocument<any> = this.afs.doc(`users/${user.uid}`);
-    const userData: User = {
+    const userRef: AngularFirestoreDocument<User> = this.afs.doc(`users/${user.uid}`);
+    const data = {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
       photoURL: user.photoURL,
-      emailVerified: user.emailVerified
+      emailVerified: true,
+      roles: {
+        tourist: true
+      }
     }
-    return userRef.set(userData, {
+    return userRef.set(data, {
+      merge: true
+    })
+  }
+
+
+  SetUserDataKeeper(user) {
+    const userRef: AngularFirestoreDocument<User> = this.afs.doc(`users/${user.uid}`);
+    const data = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      emailVerified: false,
+      roles: {
+        keeper: true
+      }
+    }
+    return userRef.set(data, {
+      merge: true
+    })
+  }
+
+  AcceptUserDataGuide(user) {
+    const userRef: AngularFirestoreDocument<User> = this.afs.doc(`users/${user.uid}`);
+    const data = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      emailVerified: true,
+
+      roles: {
+        keeper: true
+      }
+    }
+    return userRef.set(data, {
+      merge: true
+    })
+  }
+
+  RemoveUserDataKeeper(user) {
+    const userRef: AngularFirestoreDocument<User> = this.afs.doc(`users/${user.uid}`);
+    const data = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      emailVerified: false,
+      roles: {
+        keeper: false
+      }
+    }
+    return userRef.set(data, {
+      merge: true
+    })
+  }
+
+  SetUserDataAdmin(user) {
+    const userRef: AngularFirestoreDocument<User> = this.afs.doc(`users/${user.uid}`);
+    const data = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      emailVerified: false,
+      roles: {
+        admin: true
+      }
+    }
+    return userRef.set(data, {
+      merge: true
+    })
+  }
+
+  AcceptUserDataAdmin(user) {
+    const userRef: AngularFirestoreDocument<User> = this.afs.doc(`users/${user.uid}`);
+    const data = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      emailVerified: true,
+
+      roles: {
+        admin: true
+      }
+    }
+    return userRef.set(data, {
       merge: true
     })
   }
