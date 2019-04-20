@@ -9,11 +9,11 @@ import { AppRoutingModule } from './shared/routing/app-routing.module';
 
 // App components
 import { AppComponent } from './app.component';
-import { SignInComponent } from './components/sign-in/sign-in.component';
-import { SignUpComponent } from './components/sign-up/sign-up.component';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
-import { ForgotPasswordComponent } from './components/forgot-password/forgot-password.component';
-import { VerifyEmailComponent } from './components/verify-email/verify-email.component';
+import { SignInComponent } from './components/auth/sign-in/sign-in.component';
+import { SignUpComponent } from './components/auth/sign-up/sign-up.component';
+import { DashboardComponent } from './components/admin/dashboard/dashboard.component';
+import { ForgotPasswordComponent } from './components/auth/forgot-password/forgot-password.component';
+import { VerifyEmailComponent } from './components/auth/verify-email/verify-email.component';
 
 // Firebase services + enviorment module
 import { AngularFireModule } from "@angular/fire";
@@ -23,7 +23,11 @@ import { environment } from '../environments/environment';
 
 // Auth service
 import { AuthService } from "./shared/services/auth.service";
-
+import { KeeperDashboardComponent } from './components/keeper/keeper-dashboard/keeper-dashboard.component';
+import { TouristDashboardComponent } from './components/tourist/tourist-dashboard/tourist-dashboard.component';
+import { LandingComponent } from './components/common/landing/landing.component';
+import { WrongRouteComponent } from './components/common/wrong-route/wrong-route.component';
+import { NavbarComponent } from './components/common/navbar/navbar.component';
 
 @NgModule({
   declarations: [
@@ -32,7 +36,12 @@ import { AuthService } from "./shared/services/auth.service";
     SignUpComponent,
     DashboardComponent,
     ForgotPasswordComponent,
-    VerifyEmailComponent
+    VerifyEmailComponent,
+    KeeperDashboardComponent,
+    TouristDashboardComponent,
+    WrongRouteComponent,
+    LandingComponent,
+    NavbarComponent
   ],
   imports: [
     BrowserModule,
